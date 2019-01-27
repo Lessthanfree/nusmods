@@ -164,7 +164,7 @@ export default class ImproveVenueForm extends PureComponent<Props, State> {
           <ThumbsUp />
           <p>
             Thank you for helping us improve NUSMods. If you have left your email, we will send you
-            a message when your update goes live
+            a message when your update goes live!
           </p>
         </div>
       );
