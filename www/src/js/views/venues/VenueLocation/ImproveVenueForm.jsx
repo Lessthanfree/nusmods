@@ -1,6 +1,6 @@
 // @flow
-
-import type { LatLng, Viewport } from 'react-leaflet';
+import type { LatLng } from 'leaflet';
+import type { Viewport } from 'react-leaflet';
 import React, { PureComponent } from 'react';
 import { Map, Marker, TileLayer } from 'react-leaflet';
 import classnames from 'classnames';
@@ -11,7 +11,7 @@ import type { LatLngTuple, Venue, VenueLocation } from 'types/venues';
 import config from 'config';
 import { MapPin, ThumbsUp } from 'views/components/icons';
 import LoadingSpinner from 'views/components/LoadingSpinner';
-import { icon } from 'views/components/map/icons';
+import { markerIcon } from 'views/components/map/icons';
 import ExpandMap from 'views/components/map/ExpandMap';
 
 import mapStyles from 'views/components/map/LocationMap.scss';
@@ -138,8 +138,8 @@ export default class ImproveVenueForm extends PureComponent<Props, State> {
     );
   };
 
-  updateLocation = (latlng: LatLng, updateViewport: boolean = true) => {
-    const location = Array.isArray(latlng) ? latlng : [latlng.lat, latlng.lng];
+  updateLocation = (latlng: LatLng | LatLngTuple, updateViewport: boolean = true) => {
+    const location: LatLngTuple = Array.isArray(latlng) ? latlng : [latlng.lat, latlng.lng];
     const update: $Shape<State> = {
       location,
       latlngUpdated: true,
@@ -254,7 +254,7 @@ export default class ImproveVenueForm extends PureComponent<Props, State> {
           >
             <Marker
               position={location}
-              icon={icon}
+              icon={markerIcon}
               onDragEnd={(evt) => this.updateLocation(evt.target.getLatLng())}
               draggable
               autoPan

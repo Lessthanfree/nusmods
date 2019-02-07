@@ -46,7 +46,6 @@ import {
 } from 'utils/timetables';
 import config from 'config';
 import ModulesSelectContainer from 'views/timetable/ModulesSelectContainer';
-import CorsNotification from 'views/components/cors-info/CorsNotification';
 import Announcements from 'views/components/notfications/Announcements';
 import Title from 'views/components/Title';
 import NoLessonWarning from 'views/timetable/NoLessonWarning';
@@ -173,7 +172,7 @@ class TimetableContent extends Component<Props, State> {
     const { tombstone } = this.state;
 
     // Separate added modules into sections of clashing modules
-    const clashes: { [string]: Array<Module> } = findExamClashes(modules, this.props.semester);
+    const clashes = findExamClashes(modules, this.props.semester);
     const nonClashingMods: Array<Module> = _.difference(modules, _.flatten(_.values(clashes)));
 
     if (_.isEmpty(clashes) && _.isEmpty(nonClashingMods) && !tombstone) {
@@ -295,8 +294,6 @@ class TimetableContent extends Component<Props, State> {
         onKeyUp={(e) => e.keyCode === 27 && this.cancelModifyLesson()} // Quit modifying when Esc is pressed
       >
         <Title>Timetable</Title>
-
-        <CorsNotification />
 
         <Announcements />
 

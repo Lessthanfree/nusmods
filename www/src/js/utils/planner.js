@@ -1,6 +1,7 @@
 // @flow
-import { flatten, castArray } from 'lodash';
+import { castArray, flatten, sum } from 'lodash';
 import type { ModuleCode, Semester, TreeFragment } from 'types/modules';
+import type { PlannerModuleInfo } from 'types/views';
 import config from 'config';
 
 // "Exemption" and "plan to take" modules are special columns used to hold modules
@@ -12,6 +13,9 @@ export const EXEMPTION_SEMESTER: Semester = -1;
 
 export const PLAN_TO_TAKE_YEAR = '3000';
 export const PLAN_TO_TAKE_SEMESTER = -2;
+
+// We assume iBLOCs takes place in special term 1
+export const IBLOCS_SEMESTER = 3;
 
 export function getSemesterName(semester: Semester) {
   if (semester === EXEMPTION_SEMESTER) {
@@ -86,4 +90,43 @@ export function getDroppableId(year: string, semester: Semester): string {
 export function fromDroppableId(id: string): [string, Semester] {
   const [acadYear, semesterString] = id.split('|');
   return [acadYear, +semesterString];
+}
+
+// Create shortened AY labels - eg. 2019/2020 -> 19/20
+export function acadYearLabel(year: string) {
+  // Remove the 20 prefix from AY
+  return year.replace(/\d{4}/g, (match) => match.slice(2));
+}
+
+/**
+ * Get a planner module's title, preferring customInfo over moduleInfo.
+ * This allows the user to override our data in case there are mistakes.
+ */
+export function getModuleTitle(module: PlannerModuleInfo): ?string {
+  const { moduleInfo, customInfo } = module;
+  // customInfo.title is nullable, and there's no point in displaying an
+  // empty string, so we can use || here
+  return customInfo?.title || moduleInfo?.ModuleTitle || null;
+}
+
+/**
+ * Get a planner module's credits, preferring customInfo over moduleInfo.
+ * This allows the user to override our data in case there are mistakes.
+ */
+export function getModuleCredit(module: PlannerModuleInfo): ?number {
+  const { moduleInfo, customInfo } = module;
+
+  // Or operator (||) is not used because moduleCredit can be 0, which is
+  // a falsey value
+  if (customInfo) return customInfo.moduleCredit;
+  if (moduleInfo) return +moduleInfo.ModuleCredit;
+  return null;
+}
+
+/**
+ * Get total module credits for the given array of planner modules
+ */
+export function getTotalMC(modules: PlannerModuleInfo[]): number {
+  // Remove nulls using .filter(Boolean)
+  return sum(modules.map(getModuleCredit).filter(Boolean));
 }

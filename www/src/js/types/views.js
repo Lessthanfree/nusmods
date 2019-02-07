@@ -11,8 +11,8 @@ import type {
   Semester,
   TreeFragment,
 } from './modules';
-import type { ModuleList } from './reducers';
-import type { Venue, VenueList } from './venues';
+import type { CustomModule, ModuleList } from './reducers';
+import type { NextBusTimings, Venue, VenueList } from './venues';
 
 export type ComponentMap = {|
   globalSearchInput: ?HTMLInputElement,
@@ -70,6 +70,8 @@ export type DisqusConfig = {|
 export type ModuleTableOrder = 'exam' | 'mc' | 'code';
 
 export type SelectedLesson = {| date: Date, lesson: Lesson |};
+
+export type ExamClashes = { [string]: Module[] };
 
 // Incomplete typing of Mamoto's API. If you need something not here, feel free
 // to declare the typing here.
@@ -159,16 +161,48 @@ export type EmptyGroupType =
   | 'reading';
 
 /* views/planner */
-export type ModuleWithInfo = {
-  moduleCode: ModuleCode,
-  moduleInfo?: Module,
-  conflicts?: ?Array<TreeFragment>,
+export type PrereqConflict = {
+  type: 'prereq',
+  unfulfilledPrereqs: Array<TreeFragment>,
 };
+
+export type ExamConflict = {
+  type: 'exam',
+  conflictModules: ModuleCode[],
+};
+
+export type SemesterConflict = {
+  type: 'semester',
+  semestersOffered: Semester[],
+};
+
+export type NoInfo = {
+  type: 'noInfo',
+};
+
+export type Conflict = PrereqConflict | ExamConflict | SemesterConflict | NoInfo;
+
+export type PlannerModuleInfo = {|
+  moduleCode: ModuleCode,
+  moduleInfo?: ?Module,
+  // Custom info added by the student to override our data or to fill in the blanks
+  // This is a separate field for easier typing
+  customInfo?: ?CustomModule,
+  conflict?: ?Conflict,
+|};
 
 export type PlannerModulesWithInfo = {
   // Mapping acad years to a map of semester to module information object
   // This is the form used by the UI
   +[string]: {|
-    +[Semester]: ModuleWithInfo,
+    +[Semester]: PlannerModuleInfo,
   |},
 };
+
+export type BusTiming = {|
+  // Loading uses a boolean instead of making timings null so that
+  // the old timing can be seen while it is refreshed
+  isLoading: boolean,
+  timings: ?NextBusTimings,
+  error: ?Error,
+|};

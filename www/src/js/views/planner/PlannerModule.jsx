@@ -1,13 +1,15 @@
 // @flow
 
-import type { ModuleCode, ModuleTitle, TreeFragment } from 'types/modules';
 import React, { PureComponent } from 'react';
 import Downshift from 'downshift';
 import { Draggable } from 'react-beautiful-dnd';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-
 import classnames from 'classnames';
+
+import type { ModuleCode, ModuleTitle } from 'types/modules';
+import type { Conflict } from 'types/views';
+import config from 'config';
 import { examDateToDate, renderMCs } from 'utils/modules';
 import { conflictToText } from 'utils/planner';
 import { AlertTriangle, ChevronDown } from 'views/components/icons';
@@ -21,24 +23,39 @@ type Props = {|
   +moduleTitle: ?ModuleTitle,
   +moduleCredit: ?number,
   +examDate: ?string,
-  +conflicts: ?Array<TreeFragment>,
+  +conflict: ?Conflict,
 
   // For draggable
   +index: number,
 
   // Actions
   +removeModule: (ModuleCode) => void,
+  +addCustomData: (ModuleCode) => void,
 |};
 
-const ModuleMenu = React.memo((props: {| +removeModule: () => void |}) => {
-  const menuItems = [['Remove', props.removeModule]];
+type MenuProps = {|
+  +removeModule: () => void,
+  +editCustomData: () => void,
+|};
+
+type MenuItem = {|
+  label: string,
+  action: () => void,
+  className?: string,
+|};
+
+const ModuleMenu = React.memo((props: MenuProps) => {
+  const menuItems: MenuItem[] = [
+    { label: 'Edit MC and Title', action: props.editCustomData },
+    { label: 'Remove', action: props.removeModule, className: 'dropdown-item-danger' },
+  ];
 
   return (
     <Downshift
-      onChange={(item) => {
-        menuItems.forEach(([menuItem, onSelect]) => {
-          if (item === menuItem) {
-            onSelect();
+      onSelect={(item) => {
+        menuItems.forEach(({ label, action }) => {
+          if (item === label) {
+            action();
           }
         });
       }}
@@ -55,16 +72,19 @@ const ModuleMenu = React.memo((props: {| +removeModule: () => void |}) => {
           >
             <ChevronDown />
           </button>
-          <div className={classnames('dropdown-menu', { show: isOpen })} {...getMenuProps()}>
-            {menuItems.map(([item], itemIndex) => (
+          <div
+            className={classnames(styles.menu, 'dropdown-menu', { show: isOpen })}
+            {...getMenuProps()}
+          >
+            {menuItems.map(({ label, className }, itemIndex) => (
               <button
-                key={item}
-                className={classnames('dropdown-item', {
+                key={label}
+                className={classnames('dropdown-item', className, {
                   'dropdown-selected': highlightedIndex === itemIndex,
                 })}
-                {...getItemProps({ item })}
+                {...getItemProps({ item: label })}
               >
-                {item}
+                {label}
               </button>
             ))}
           </div>
@@ -78,6 +98,65 @@ const ModuleMenu = React.memo((props: {| +removeModule: () => void |}) => {
  * Component for a single module on the planner
  */
 export default class PlannerModule extends PureComponent<Props> {
+  renderConflict(conflict: Conflict) {
+    switch (conflict.type) {
+      case 'noInfo':
+        return (
+          <div className={styles.conflictHeader}>
+            <AlertTriangle className={styles.warningIcon} />
+            <p>
+              No data on this module.{' '}
+              <button className="btn btn-link btn-inline" onClick={this.editCustomData}>
+                Add data
+              </button>
+            </p>
+          </div>
+        );
+
+      case 'semester':
+        return (
+          <div className={styles.conflictHeader}>
+            <AlertTriangle className={styles.warningIcon} />
+            <p>
+              Module may only only be offered in{' '}
+              {conflict.semestersOffered
+                .map((semester) => config.shortSemesterNames[semester])
+                .join(', ')}
+            </p>
+          </div>
+        );
+
+      case 'exam':
+        return (
+          <div className={styles.conflictHeader}>
+            <AlertTriangle className={styles.warningIcon} />
+            <p>{conflict.conflictModules.join(', ')} have clashing exams</p>
+          </div>
+        );
+
+      case 'prereq':
+        return (
+          <>
+            <div className={styles.conflictHeader}>
+              <AlertTriangle className={styles.warningIcon} />
+              <p>These modules may need to be taken first</p>
+            </div>
+
+            <ul className={styles.prereqs}>
+              {conflict.unfulfilledPrereqs.map((prereq, i) => (
+                <li key={i}>
+                  <LinkModuleCodes>{conflictToText(prereq)}</LinkModuleCodes>
+                </li>
+              ))}
+            </ul>
+          </>
+        );
+
+      default:
+        return null;
+    }
+  }
+
   renderMeta() {
     const { moduleCredit, examDate } = this.props;
     if (!moduleCredit && !examDate) return null;
@@ -90,32 +169,11 @@ export default class PlannerModule extends PureComponent<Props> {
     );
   }
 
-  renderConflict() {
-    const { conflicts } = this.props;
-    if (!conflicts) return null;
-
-    return (
-      <div className={styles.conflicts}>
-        <div className={styles.conflictHeader}>
-          <AlertTriangle className={styles.warningIcon} />
-          <p>These modules may need to be taken first</p>
-        </div>
-
-        <ul className={styles.prereqs}>
-          {conflicts.map((conflict, i) => (
-            <li key={i}>
-              <LinkModuleCodes>{conflictToText(conflict)}</LinkModuleCodes>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  }
-
   removeModule = () => this.props.removeModule(this.props.moduleCode);
+  editCustomData = () => this.props.addCustomData(this.props.moduleCode);
 
   render() {
-    const { moduleCode, moduleTitle, index, conflicts } = this.props;
+    const { moduleCode, moduleTitle, index, conflict } = this.props;
 
     return (
       <Draggable key={moduleCode} draggableId={moduleCode} index={index}>
@@ -123,13 +181,13 @@ export default class PlannerModule extends PureComponent<Props> {
           <div
             ref={provided.innerRef}
             className={classnames(styles.module, {
-              [styles.warning]: conflicts,
+              [styles.warning]: conflict,
               [styles.isDragging]: snapshot.isDragging,
             })}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
           >
-            <ModuleMenu removeModule={this.removeModule} />
+            <ModuleMenu removeModule={this.removeModule} editCustomData={this.editCustomData} />
 
             <div className={styles.moduleInfo}>
               <div className={styles.moduleName}>
@@ -140,7 +198,7 @@ export default class PlannerModule extends PureComponent<Props> {
 
               {this.renderMeta()}
 
-              {this.renderConflict()}
+              {conflict && <div className={styles.conflicts}>{this.renderConflict(conflict)}</div>}
             </div>
           </div>
         )}
